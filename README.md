@@ -1,0 +1,2 @@
+# HighThroughSequencingDataAnalysis
+This project is focused on: assess high-throughput sequencing (HTS) data quality, design an analysis pipeline for the most common HTS data types, implement the data analysis pipeline using existing software components and tools, visualize both the original data and data analysis results to highlight main findings, and evaluate the performance of the data analysis by comparing with different external resource.
