@@ -1,0 +1,77 @@
+Bulk RNA-seq: gene and transcript quantification
+
+
+In this session we will review some basics of RNA-seq data analysis and learn about an additional method to perform gene and transcript quantification. 
+By the end of this session, you will have generated data matrices of read counts for genes and transcripts from a set of RNA-seq sequencing reads.
+
+Getting started
+Before starting with the actual tasks, let’s set up the working directory we will use throughout the exercise sessions.
+
+Start by logging in to the binf (binf.rd.tuni.fi) server using any SSH client software. Let’s start by creating a working directory for the first exercise. 
+Follow the steps below, replacing the <your_username> placeholder with your binf username and the <YEAR> placeholder with the current year.
+
+/student_data/BBT.BI.203_YEAR/students/<your_username>/ex1/
+├── data -> /student_data/BBT.BI.203_YEAR/data/ex1/
+├── qc
+├── hisat2
+│   ├── alignments
+│   └── index
+├── references -> /student_data/BBT.BI.203_YEAR/references/ex1/
+└── scripts
+
+The working directory for this session is /student_data/BBT.BI.203_YEAR/students/<your_username>/ex1/. Go ahead and create it. Then structure it in the following way.
+
+1. Make the sort cut of samples for saving times
+
+# change directory to ex1 directory
+cd /student_data/BBT.BI.203_YEAR/students/<your_username>/ex1/
+
+# create a soft link to the ex1 data directory (use absolute path)
+ln -s /student_data/BBT.BI.203_YEAR/data/ex1/ data
+
+# create a soft link to the references directory (use absolute path)
+ln -s /student_data/BBT.BI.203_YEAR/references/ex1/ references
+
+
+2. Evalute the sample quality
+2.1 Using fastqc command for analyzing data
+fastqc ./data/BPH_659.chrX.R1.fq.gz -o ./qc/
+fastqc ./data/BPH_659.chrX_R1.fq.gz -o ./qc/
+fastqc ./data/BPH_665.chrX_R1.fq.gz -o ./qc/
+fastqc ./data/BPH_701.chrX_R1.fq.gz -o ./qc/
+fastqc ./data/PC_13943.chrX_R1.fq.gz -o ./qc/
+fastqc ./data/PC_15194.chrX_R1.fq.gz -o ./qc/
+fastqc ./data/PC_19403.chrX_R1.fq.gz -o ./qc/
+
+3. hisat2 -build index
+hisat2-build can index reference genomes of any size. For genomes less than 
+about 4 billion nucleotides in length, hisat2-build builds a “small” index using 
+32-bit numbers in various parts of the index. When the genome is longer, hisat2-build 
+builds a “large” index using 64-bit numbers.
+
+hisat2-build -f ../../references/fasta/GRCh38.p13.chrX.fa --exon ../../references/gencode.v32.exons.tsv --ss ../../references/gencode.v32.ss.tsv --haplotype ../../references/snp144Common.haplotype --snp ../../references/snp144Common.snp GRCh38_p38_chrX_index
+
+4. Hisat2 command
+Running hisat2 command for 6 pairs samples using loop command
+
+for f in $(find /student_data/BBT.BI.203_2022/data/ex1/ -type f -name '*.chrX_R1.fq.gz'); do 
+  echo $f;
+  bn=$(basename $f);
+  bam=${bn/_R1.fq.gz/_sorted.bam};
+  echo $bn
+  echo $bam
+  hisat2 -x ../index/GRCh38_p38_chrX_index -1 <(zcat $f) -2 <(zcat ${f/R1/R2}) | samtools view -bS | samtools sort -o $bam -  && samtools index $bam \
+&& gzip $bam; 
+done
+
+5. featureCounts
+Cound read pairs of annotated genes based on exon
+featureCounts -g gene_id -t exon -p --countReadPairs -a /student_data/BBT.BI.203_2022/references/ex1/gff/gencode.v32.annotation.chrX.gff3 -o quantification_genes.bed /student_data/BBT.BI.203_2022/students/leh/exercise_1/histat2/alignments/*.bam
+
+Count read pairs of annotated transcripts based on exon
+featureCounts -g transcript_id -t exon -p --countReadPairs -a /student_data/BBT.BI.203_2022/references/ex1/gff/gencode.v32.annotation.chrX.gff3 -o quantification_transcripts.bed /student_data/BBT.BI.203_2022/students/leh/exercise_1/histat2/alignments/*.bam
+
+Count read pairs of annotated transcripts based on exon with overlapping
+eatureCounts -g transcript_id -t exon -p -O --countReadPairs -a /student_data/BBT.BI.203_2022/references/ex1/gff/gencode.v32.annotation.chrX.gff3 -o quantification_transcripts.bed /student_data/BBT.BI.203_2022/students/leh/exercise_1/histat2/alignments/*.bam
+
+
