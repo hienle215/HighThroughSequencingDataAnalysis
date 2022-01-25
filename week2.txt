@@ -1,0 +1,49 @@
+Exercise Set 2: RNA-seq quantification continued
+
+In this session we will continue to explore methods for bulk RNA-seq data analysis. We will learn about an alignment-free method for performing transcript quantification
+ called Kallisto and compare the results from this tool with our alignment-based RNA-seq quantification from Exercise Set 1.
+1. Kallisto index
+kallisto index -i gencode.v32.transcripts.idx /student_data/BBT.BI.203_2022/references/ex1/fasta/gencode.v32.transcripts.chrX.fa.gz
+
+2. Quantification
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_659 -b 100 BPH_659.chrX_R1.fq.gz BPH_659.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_665 -b 100 BPH_665.chrX_R1.fq.gz BPH_665.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_701 -b 100 BPH_701.chrX_R1.fq.gz BPH_701.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_13943 -b 100 PC_13943.chrX_R1.fq.gz PC_13943.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_15194 -b 100 PC_15194.chrX_R1.fq.gz PC_15194.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_19403 -b 100 PC_19403.chrX_R1.fq.gz PC_19403.chrX_R2.fq.gz 
+
+3. To create BAM file from references/kallisto
+--bootstrap-samples 30
+--pseudobam
+--genomebam 
+references/kallisto/ include gencode.v32.annotation.chrX.for.kallisto.gtf and hg38.chrom.sizes
+Pseudoalignment for transcriptome
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_659 --pseudobam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 BPH_659.chrX_R1.fq.gz BPH_659.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_655 --pseudobam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 BPH_665.chrX_R1.fq.gz BPH_665.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_701 --pseudobam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 BPH_701.chrX_R1.fq.gz BPH_701.chrX_R2.fq.gz  
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_13943 --pseudobam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 PC_13943.chrX_R1.fq.gz PC_13943.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_15194 --pseudobam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 PC_15194.chrX_R1.fq.gz PC_15194.chrX_R2.fq.gz  
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_19403 --pseudobam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 PC_19403.chrX_R1.fq.gz PC_19403.chrX_R2.fq.gz 
+
+
+Pseudoalignment for genome
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_659 --genomebam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 BPH_659.chrX_R1.fq.gz BPH_659.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_655 --genomebam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 BPH_665.chrX_R1.fq.gz BPH_665.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/BPH_701 --genomebam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 BPH_701.chrX_R1.fq.gz BPH_701.chrX_R2.fq.gz  
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_13943 --genomebam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 PC_13943.chrX_R1.fq.gz PC_13943.chrX_R2.fq.gz 
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_15194 --genomebam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 PC_15194.chrX_R1.fq.gz PC_15194.chrX_R2.fq.gz  
+kallisto quant -i /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/index/gencode.v32.transcripts.idx -o /student_data/BBT.BI.203_2022/students/leh/ex1/kallisto/output/PC_19403 --genomebam --gtf /student_data/BBT.BI.203_2022/references/ex1/kallisto/gencode.v32.annotation.chrX.for.kallisto.gtf --bootstrap-samples 30 PC_19403.chrX_R1.fq.gz PC_19403.chrX_R2.fq.gz 
+
+merge function
+est_count_matrix # from Kallisto
+df # information for transcript_ID and gene_ID
+est_count_dataframe = as.data.frame(est_counts_matrix)
+merge(est_count_dataframe, df, by = intersect(rownames(est_count_dataframe), df$transcript_id)) 
+
+
+
+
+
+
+
