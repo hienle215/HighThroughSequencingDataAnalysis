@@ -1,0 +1,513 @@
+---
+title: "Week_5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:\\Users\\leh\\Documents\\HighThroughputDataAnalysis\\week_5")
+```
+
+# Single cell RNA-seq: introduction
+
+# Data set
+
+In this session, we will use data from a published study of scRNA-seq (1). The data matrix contains gene expression quantified at the single cell level in unstimulated peripheral blood monuclear cells (PBMCs).
+
+## Tasks
+
+### Task1
+
+```{r Load-data, echo=TRUE, eval=FALSE}
+expression_matrix = read.table(file = "immune_control_expression_matrix.txt", 
+                               header = TRUE,
+                               sep = "\t", 
+                               row.names = 1)
+```
+
+### Task2
+
+```{r Check-matrix, echo=TRUE, eval=FALSE}
+dim(expression_matrix)
+nrow(expression_matrix)
+ncol(expression_matrix)
+```
+### Task3
+
+Print the first 5 values from the first row and the first 5 values from the first column.
+
+```{r Extract-matrix, echo=TRUE, eval=FALSE}
+expression_matrix[1:5, 1:5]
+head(rownames(expression_matrix))
+```
+
+## Questions
+
+### Question1
+
+Rows in the data matrix present the gene name-ENSEMBL SYMBOL.
+Header of columns in the data matrix presents cells.
+The number in each columns shows the counts according to the gene.
+
+### Question2
+
+The data matrix contains the measurement of gene expression at the individual cell level. In the case of several zero, it could be that an expressed transcript is not detected and hence assigned a zero expression value. 
+However, I think that here, we could concern 2 options of zero: one is belonged to biological zeros, meaning genes that were not expression at the time of sequencing and second is technical zero, meaning genes that were expressed at the time of sequencing but the technical could not detect or measure. 
+
+
+# Setting up the Seurat project
+
+## Tasks
+
+### Task1
+
+Reading the "Setup the Seurat object" section from the tutorial page.
+
+### Task2
+
+Loading PBMC data matrix into an R session using read.table()
+
+```{r Loading-PBMC-matrix, echo=TRUE, eval=FALSE}
+# Load the PBMC dataset
+
+mat_path <- "immune_control_expression_matrix.txt"
+
+pbmc.data <- Matrix::Matrix(as.matrix(read.table(mat_path, header = TRUE, row.names=1)), sparse=TRUE)
+
+```
+
+### Task3
+
+Create seurat object.
+
+```{r Loading-PBMC-matrix, echo=TRUE, eval=FALSE}
+library(dplyr)
+library(Seurat)
+# Load the PBMC dataset
+
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "control", min.cells = 3, min.features = 200)
+pbmc
+
+```
+
+## Questions
+
+### Question1
+
+What is a sparse matrix? a spare matrix is a matrix that is comprised of mostly zero values, which are referred to as dense matrices.
+Why do we need it for single cell data? Because in the output of single data, we have several 0 values in measurement results.
+
+### Question2
+
+
+### Question3
+
+What is the function of the min.cells parameter? min.feartures helps limit the number of genes used by removing those unlikely to play any part in differentiating groups of cells due to being expressed in very few cells.
+14561 features acress 12932 samples within 1 assay. 
+Thus, 21074 rows have discarded. 
+
+### Question4
+
+What is min.features? min.features removes dead cells cells and empty droplets where few genes are detected
+
+# Pre-processing
+
+## Tasks
+
+### Task1
+
+Read the "Standard pre-processing workflow" section from the tutorial page.
+
+### Task2
+
+Compute the mitochronrial contamination percentage and sotre it in the previously created Seurat object.
+
+```{r Mitochronrial-contamination-percentage, echo=TRUE, eval=FALSE}
+
+#Compute the mitochondrial contamination percentage and store it in pbmc  
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+
+```
+
+### Task3
+
+Plot the QC metric nFeature_RNA, nCOunt_RNA, and percent.mt as violin plots.
+
+```{r QC-metric, echo=TRUE, eval=FALSE}
+
+# Plot the QC metrics nFeature_RNA, nCount_RNA, and percent.mt 
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+```
+
+
+### Task4
+
+Plot a scatterplot of nCount_RNA and nFeature_RNA.
+
+```{r Loading-PBMC-matrix, echo=TRUE, eval=FALSE}
+
+#Plot a scatterplot of nCount_RNA and nFeature_RNA
+plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+CombinePlots(plots = list(plot1, plot2))
+
+```
+
+
+### Task5
+
+Subset the Seurat object so that it only containes cells that have features coutns between 200 and 2500.
+
+```{r Loading-PBMC-matrix, echo=TRUE, eval=FALSE}
+
+pbmc = subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+```
+
+## Questions
+
+### Question1
+
+What do the nFeature_RNA and nCount_RNA values describe?
+nFeature_RNA is the number of genes detected in each cells.
+nCount_RNA is the total number of molecules detected within a cell. 
+
+### Question2
+
+Why do we filter out cells from our Seurate object based on percent.mt? genes starting with MT- as a set of mitochondrial genes
+
+### Question3
+
+Discuss the scatter plot. nFeature_RNA has a smaller distribution than nCount_RNA.It means that y-axis in nFeature is smaller than y-axis in nCount_RNA. 
+
+
+### Question4
+
+How many cells remain in our Seurat object after filtering?
+14561 features across 12932 samples within 1 assay 
+
+### Question5
+
+Whare are multiplets? In single cell analysis, multiplets are identified as cell barcodes associated with multiple oligo sequences.
+
+Why do we remove multiplets? Multiplets create artificial cell types in the dataset.
+
+# Normalization
+
+## Tasks
+
+### Task1
+
+Read the "Normalizing the data" section from the tutorial page.
+
+### Task2
+
+Normalization
+
+```{r Normalization, echo=TRUE, eval=FALSE}
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 100000)
+
+pbmc = NormalizeData(pbmc)
+```
+
+## Questions
+
+### Question1
+
+How dose the LogNormalize method work? It normalizes the feature expression measurements for each cell by the total expression, multiplies this by a scale factor (10,000 by default), and log-transforms the result. Normalized values are stored in pbmc[["RNA"]]@data.
+
+# Feature Selection
+
+## Tasks
+
+### Task1
+
+Read the "identification of highly variable features" section from the tutorial page.
+
+### Task2
+
+Use the FindVariableFeatures function to extract the top 1000 varialble genes in the dataset.
+
+```{r top-genes, echo=TRUE, eval=FALSE}
+
+#Identification of highly variable features
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 1000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+
+```
+
+### Task3
+
+Use the VariableFeaturePlot function to plot the results.
+
+```{r Combine-plots, echo=TRUE, eval=FALSE}
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+CombinePlots(plots = list(plot1, plot2))
+
+```
+
+## Questions
+
+### Question1
+
+List the first 10 vairable genes
+HBB, HBA2, HBA1, CCL3, CCL2, CXCL10, CCL4, TXN, CCL7, PPBP
+
+# Scaling
+
+## Tasks
+
+### Task1
+
+Read the "scaling the data" section from the tutorial page.
+
+
+## Task2
+
+Use the ScaleData function to center and scale the data.
+
+```{r Scale-data, echo=TRUE, eval=FALSE}
+
+#Scaling the data
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+
+```
+
+## Questions
+
+### Question1
+
+Plot a histogram of the mean expression values of the genes across the cells after scaling.
+
+```{r Histograme-mean, echo=TRUE, eval=FALSE}
+hist(pbmc$nCount_RNA)
+mean(pbmc$nCount_RNA) #1488.894
+```
+
+### Question2
+
+Plot a histograme of the variances of the gene expression values across the cells after scaling. 
+
+```{r Histograme-variance, echo=TRUE, eval=FALSE}
+hist(pbmc$nFeature_RNA)
+mean(pbmc$nFeature_RNA) #565.4591
+```
+
+# Principal component analysis
+
+## Tasks
+
+### Task1
+
+Read the "perform linear dimensional reduction" section from the tutorial page.
+
+
+### Task2
+Use the RunPCA function to perform dimensional reduction using the top 1000 variables genes.
+
+```{r RunePCA-function, echo=TRUE, eval=FALSE}
+
+#Perform linear dimensional reduction
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+```
+
+### Task3
+
+Using the VizDimLoadings function to visualize the relative contribution of the genes in the first 15 principal components.
+
+```{r VizDimLoadings-function, echo=TRUE, eval=FALSE}
+
+# Examine and visualize PCA results a few different ways
+print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(pbmc, dims = 1:15, reduction = "pca")
+
+```
+
+### Task4
+
+Use the DimpPlot function to plot the results of the PCA
+
+```{r Dim-plot-function, echo=TRUE, eval=FALSE}
+
+DimPlot(pbmc, reduction = "pca")
+
+```
+
+### Task5
+
+Use DimHeatMap fucntion to plot the singal in the first 15 principal compoments of 500 cells
+
+```{r DimHeatMap-function, echo=TRUE, eval=FALSE}
+
+DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
+DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
+
+```
+
+
+### Questions
+
+### Question1
+
+Report the top three genes with the highest contribution in the first two principal components.
+ITM2A, CREM, and BIRC3
+
+### Question2
+
+Discuss the heatmaps. At wchi principal componets is the signal lost?
+
+
+# Determine the dimensionality of the dataset
+
+## Tasks
+
+### Task1
+
+Read the "Determine the dimensionality of the dataset" section from the tutorial.
+
+### Task2
+
+Use the ElbowPlot function to visualize the variance explained by each principal component.
+
+```{r ELbowPlot-function, echo=TRUE, eval=FALSE}
+
+#Determine the ‘dimensionality’ of the dataset
+
+ElbowPlot(pbmc)
+
+```
+
+## Questions
+
+### Question1
+
+What is the number of the component at which the ncrease of explained variace is close to zero? from 10, the standar deviation becomes close to zero.
+
+
+# Clustering
+
+## Tasks
+
+### Task1
+
+Read the "Cluster the cells" section in the tutorial page.
+
+### Task2
+
+Use the FindNeighbors function to build the shared nearest neighbor (SNN) graph for the dataset.
+
+```{r SNN-analysis, echo=TRUE, eval=FALSE}
+
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+
+```
+
+### Task3
+
+Use FindClusters function to identify the cluster in the SNN graph.
+
+```{r Cluster-function, echo=TRUE, eval=FALSE}
+
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+head(Idents(pbmc), 5)
+Idents(FindNeighbors(pbmc, dims = 1:10))
+Idents(FindClusters(pbmc, resolution = 0.5))
+```
+
+## Questions
+
+### Question1
+
+How many clusters are identified?
+Number of nodes: 12932
+Number of edges: 409047
+Number of communities: 10
+
+### Question2
+
+Count and report how many cells belong to each cluster? 11932
+
+# Non-linear dimensional reduction (tSNE + UMAP)
+
+PCA is a linear dimensionality reduction method.
+
+## Tasks
+
+### Task1
+
+Read the "Run non-linear dimensional reduction" section from the tutorial page.
+
+### Task2
+
+Use the RunTSNE function to perform the t-distributed stochastic neighbor embeddeing (tSNE) analysis on the dataset.
+
+```{r RnuTSNE-function, echo=TRUE, eval=FALSE}
+
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+pbmc <- RunTSNE(pbmc, dims.use = 1:5)
+
+```
+
+### Task3
+
+Visualize the reulst from task2 with DimPlot finction.
+
+```{r DimPlot-function, echo=TRUE, eval=FALSE}
+
+DimPlot(pbmc, reduction = "tsne")
+
+```
+
+### Task4
+
+Save the R workspace as RData file.
+
+```{r Save-working-space, echo=TRUE, eval=FALSE}
+
+save.image(file = "week_5.RData")
+```
+
+## Questions
+
+### Question1
+
+How many clusters are visualized using the tSNE approach? 9 clusters but they are divided to 3 big/main distributions.
+
+### Question2
+
+What is the perplexity parameter in tSNE? How would you specify a suitable value?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
