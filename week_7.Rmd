@@ -1,0 +1,303 @@
+---
+title: "week_7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Assay for transposase accessible chromatin coupled with sequencing (ATAC-seq): Introduction
+
+This week exercise focuses on a method for studying local chromatin structure that was first proposed in 2013 by Jason Bueronstol et al. 
+
+## Question
+
+### Question 1
+
+What specific information would we need to characterize the proteins bound to a set of ATAC-seq peaks?
+
+Typically, peaks from ATAC-seq will represent a mixture of different cis-regulatory elements including enhances and promoters.Before analyzing the characterize the proteins bound to a set of ATAC-seq peaks, we need firstly read alignment to a references genomes and post-alignment QC for processing. 
+ATAC-seq identifies accessible DNA regions by probing open chromatin with hyperactive mutant Tn5 Transposase that inserts sequencing adapters into open regions of the genome. The number of reads for a region correlate with how open that chromatin is, at single nucleotide resolution.
+
+# Dataset
+
+The dataset focused on the study of human enhancer activity with STARR-seq, a functional assay that allows for the determination of active enhancers across the genome.
+The data were collected from LNCaP cell lines treated with TSA to study the relationship between gene expression, chromatin accessibility and enhancer activity.
+
+# Alignment
+
+To start the analysis of ATAC-seq data, the FASTQ files will be aligned the reads from the 6 samples to the reference genome.
+
+## Tasks
+
+### Task 1
+
+To create the index of reference. In here, I could not write the right for command for running all samples in one command, thus, I must run the reperate commands for each sample.
+For example: Commands for SRR3622818 sample
+
+```{r bowtie-2-index, echo=TRUE, eval=FALSE}
+
+bowtie2 --very-sensitive -x /data/references/bowtie2_index/hg38 
+                 -1 /path/SRR3622818_chrX_1.fq.gz 
+                 -2 /path/SRR3622818_chrX_2.fq.gz 
+                  2>bowtie2_stats_1.log | samtools view -u -O BAM | samtools sort -o  /path/SRR3622818.bam
+
+picard MarkDuplicates I=SRR3622819.bam O=SRR3622819_marked.bam M=SRR3622819_metrics.txt
+
+samtools index -b SRR3622819_marked.bam SRR3622819_marked.bai
+
+```
+
+### Task2
+
+Run the multiqc tool to parse the bowtie2 log files and generate an interactive HTML report
+
+```{r multi-qc-command, echo=TRUE, eval=FALSE}
+
+multiQC bowtie2_stats_1.log 
+        bowtie2_stats_2.log 
+        bowtie2_stats_3.log 
+        bowtie2_stats_4.log 
+        bowtie2_stats_5.log 
+        bowtie2_stats_6.log 
+        -o multiQC 
+
+```
+
+### Task3
+
+From the multiqc report, find and report the following information as a table: sample name, overall alignment rate, percentage of ambiguously mapped reads, percentages of unmapped reads
+
+```{r table-report, echo=TRUE, eval=FALSE}
+sample_name = c("SRR3622819", "SRR3622818", "SRR3622817", "SRR3622816", "SRR3622815", "SRR3622814")
+overall_rate = c("94.2%", "93.7%", "92.2%", "94.3%", "92.9%", "93.4%")
+mapped_reads = c("52.3%", "54.2%", "47.7%", "44.9%", "47.0%", "46.5%" )
+```
+
+## Questions
+
+### Question 1
+
+Bowtie2 can perform alignments in end-to-end and locate mode.
+
+The major difference is that for a local alignment, we can try to match our reads to substring of our reference. This is less conservative approach and essentially assumes that the reads are derived directly from the reference sequence. The best possible score in local mode equals the match bonus times the length of the read. This happens when there are no differences between the read and the reference. However, the best possible alignment score in end-to-end mode is 0, which happens when there are no differences between the read and the reference. 
+
+### Question 2
+
+The very sensitive preset is a shorcut for the following parameters: -D 20 -R 3 -N 0 -L 20 -i S,1,0.50:
+
+The command line options is corresponding: -R for reads with repetitive seed, try 3 sets of seeds, -D give up extending after 20 failed extends in a row, -N maximum number of mismatches in seed alignments is 0, -L length of seed sub-string is 22.
+
+
+### Question 3
+
+Ambiguous read alignments: Some hight-throughput sequencing reads align equally well multimap to multiple parts of a genome or transcriptome. This can occur when a read derives from repeated sequence, such as duplicated gene, transposon, or pseudogene, or from repetitive sequence like telomers or heterochromatin.
+
+# Fragment length distribution
+
+Another way to assess the quality of our ATAC-seq data is to check the fragment length distributions of our samples. ATAC-seq data is made up of diverse fragment sizes, some of which are more common than others. 
+
+## Tasks
+
+### Task 1
+
+Extracting the fragment size of each aligned read pair from each alignment file.
+
+```{r samtools-view, echo=TRUE, eval=FALSE}
+samtools view SRR3622819_marked.bam | awk '{print $9}' > SRR3622819_marked_fragment.txt
+samtools view SRR3622818_marked.bam | awk '{print $9}' > SRR3622818_marked_fragment.txt
+samtools view SRR3622817_marked.bam | awk '{print $9}' > SRR3622817_marked_fragment.txt
+samtools view SRR3622816_marked.bam | awk '{print $9}' > SRR3622816_marked_fragment.txt
+samtools view SRR3622815_marked.bam | awk '{print $9}' > SRR3622815_marked_fragment.txt
+samtools view SRR3622814_marked.bam | awk '{print $9}' > SRR3622814_marked_fragment.txt
+```
+
+### Task 2
+
+Load each file from Task1 into R session and then into separate elements of a list.
+
+```{r loading-in-R, echo=TRUE, eval=FALSE}
+# Load paths
+DMSO_1 = read.table("/student_data/BBT.BI.203_2022/students/leh/ex7/alignments/SRR3622817_marked_fragment.txt")
+DMSO_1 = as.numeric(DMSO_1$V1)
+DMSO_2 = read.table("/student_data/BBT.BI.203_2022/students/leh/ex7/alignments/SRR3622818_marked_fragment.txt")
+DMSO_2 = as.numeric(DMSO_2$V1)
+DMSO_3 = read.table("/student_data/BBT.BI.203_2022/students/leh/ex7/alignments/SRR3622819_marked_fragment.txt")
+DMSO_3 = as.numeric(DMSO_3$V1)
+TSA_1 = read.table("/student_data/BBT.BI.203_2022/students/leh/ex7/alignments/SRR3622814_marked_fragment.txt")
+TSA_1 = as.numeric(TSA_1$V1)
+TSA_2 = read.table("/student_data/BBT.BI.203_2022/students/leh/ex7/alignments/SRR3622815_marked_fragment.txt")
+TSA_2 = as.numeric(TSA_2$V1)
+TSA_3 = read.table("/student_data/BBT.BI.203_2022/students/leh/ex7/alignments/SRR3622816_marked_fragment.txt")
+TSA_3 = as.numeric(TSA_3$V1)
+# Read data
+
+data_list = list(DMSO_1, DMSO_2, DMSO_3, TSA_1, TSA_2, TSA_3)
+
+```
+
+### Task 3
+
+For reach element of the list, use the density function to perform a kernel density estimate.
+
+```{r density, echo=TRUE, eval=FALSE}
+D <- as.list()
+D = lapply(data_list, function(x){
+  x_new <- c()
+  for(i in 1:length(x)){
+    if(x[i] > 0 && x[i] < 1000){
+      x_new = c(x_new,x[i])
+    }
+  }
+  D = density(x_new)
+})
+```
+
+### Task 4
+
+Produce a line plot for each element of the list
+
+```{r plot-line, echo=TRUE, eval=FALSE}
+
+par(mfrow = c(2,3))
+plot(D[[1]], main = "DMSO_1")
+plot(D[[2]], main = "DMSO_2")
+plot(D[[3]], main = "DMSO_3")
+plot(D[[4]], main = "TSA_1")
+plot(D[[5]], main = "TSA_2")
+plot(D[[6]], main = "TSA_3")
+```
+
+
+## Questions
+
+### Question 1
+
+Describe SAM and BAM format
+
+1. SAM format: is a text format for storing sequence data in a series of tab delimited ASCII columns. It is a TAB-delimited text fromat consisting of a header section, which is optional and an alignment section. If present, the header must be prior to the alignments. Header lines start with @, while alignment lines do not. Each alignment line has 11 mandatory fields fro essential alignment information such as mapping position, and variable number of optional fields for flexible or aligner specific information. 
+
+Columns in SAM format following the below sequences: 
+- Query template NAME
+- bitwise FLAG
+- Reference sequence NAME
+- 1-based leftmost mapping position
+- mapping quality
+- CIGAR string
+- reference name of the mate/next read
+- possition of the mate/next read
+- observed template length
+- segment sequence
+- ASCII of Phred-scaled base quality + 33
+
+2. BAM files contain the same inforamtion as SAM files, execpt they are in binary file format which is not readable by humans. On the other hand, BAM files are smaller and more efficient for software to work with than SAM files, saving time and reducing costs of computation and storage. Alignment data is almost always stored in BAM files and most software that analyzes aligned reads expects to ingest data in BAM format (often with a BAM index file, to be discussed later in this post). The remainder of this piece will refer to just the BAM file for simplicity, although the data are identical between SAM and BAM files.
+
+### Question 2
+
+Awk runs through a text file by reading and processing one record at time. Its commands are written with the intention that they act repetitively on each record as it is read in to awk. A record that has been read by awk is broken into separate fields, and actions can be performed on the separate fields as well as on the whole record.
+The print command followed by specific field variables will print only those fields named by the variables, instead of the entire record. Let's look at an example. To extract the owner, size, and file name from the output of an ls -l files listing, you would need to print only fields 3, 5, and 9. The command for doing this is illustrated in Figure 3. Note that $3, $5, and $9 appear inside the awk script '{print $3 $5 $9}' and are therefore interpreted by awk as awk field variables.
+
+### Question 3
+
+What is kernel density estimate (KDE)?
+In statistics, kernel density estimation is a non-parametric way to estimate the probability density function of a random variable. Kernel density estimation is a fundamental data smoothing problem where inferences about the population are made, based on a finite data sample. 
+
+Why do we want to apply it in this analysis?
+I think that due to Kernel-based methods are most popular non-parametric estimators.
+
+### Question 4
+
+Take a look at the plots and compare them with the Figure 2a: I have a peak.
+As I read through the publication, the analysis of ATAC-seq will present along fragment length with DNA pitch, nucleosome, dimer, trimer, tetramer, pentamer, and hexamer. Since ATAC-seq paired-end reads produced detailed information about the nucleosome packing and positioning, the insert size distribution of sequenced fragments from human chromatin analysis is observed the pick around 200 bp of fragment length. It means that many fragments are protected by nucleosomes. 
+
+### Question 5
+
+Without lapply, I think that we can use sapply. Applying the lapply() function would give us a list unless you pass simplify=FALSE as a parameter to sapply(). However, I have not tried it.
+
+# Peak calling
+
+Having aligned our ATAC-seq reads and inspected the resulting alignments, we can proceed to perform peak calling on our data. In this process, we identify regions of the genome that are enriched with aligned reads, revealing the regions of open chromatin.
+
+## Tasks
+
+### Task 1
+
+For each alignment file, use the MACS2 software to call peaks in these samples. The 6 samples were run as the below command sequence:
+
+```{r macs2-command, echo=TRUE, eval=FALSE}
+macs2 callpeak -f BAMPE -t <BAM files> --nomodel –broad -g hs -n <string names> --outdir 2> .log 
+
+macs2 callpeak -f BAMPE 
+              -t SRR3622819_marked.bam 
+              -g hs -n SRR3622819_marked 
+              --nomodel --broad 
+              --outdir /student_data/BBT.BI.203_2022/students/leh/ex7/peaks  
+              2>/student_data/BBT.BI.203_2022/students/leh/ex7/peaks/SRR3622819_marked.log
+
+```
+
+4 files were generated after this command. 
+
+### Task 2
+
+Using the full dataset for further analysis: /student_data/BBT.BI.203_YEAR/files/ex7_peaks
+
+### Task 3
+
+The samples were run as the below command for each pair.
+For example:
+```{r jaccard-command, echo=TRUE, eval=FALSE}
+
+bedtools jaccard -a SRR3622814_sorted_markdup.bam_peaks.gappedPeak 
+                -b SRR3622815_sorted_markdup.bam_peaks.gappedPeak
+                  > /student_data/BBT.BI.203_2022/students/leh/ex7/jaccard/TSA1_paired_TSA2.txt
+
+```
+
+## Questions
+
+### Question 1
+
+What is the function of the -fBAMPE parameter? -f format of input file. We use it in this case to notice the macs2 command know that the input file is bam file. A special mode will be triggered while the format is specified as BAMPE or BEDPE. In this way, MACS2 will process the BAM or BED files as paired-end data. Instead of building a bimodal distribution of plus and minus strand reads to predict fragment size, MACS2 will use actual insert sizes of pairs of reads to build fragment pileup.
+
+### Question 2
+
+What is the -ghs pamater? mappable genome size which is defined as the genome size which can be sequenced; some precompiled values provided. 
+hs = hs: 2.7e9
+Because of the repetitive features on the chromosomes, the actual mappable genome size will be smaller than the original size, about 90% or 70% of the genome size. The default hs -- 2.7e9 is recommended for human genome.
+How can this parameter be set for organisms other than models? A slight difference in the number won't cause a big difference of peak calls, because this number is used to estimate a genome-wide noise level which is usually the least significant one compared with the local biases modeled by MACS. I think that we can set up mm values for this case.
+
+### Question 3
+
+What is this shift in ChIP-seq? The tag density around a true binding site should show a bimodal enrichment pattern (or paired peaks). MACS takes advantage of this bimodal pattern to empirically model the shifting size to better locate the precise binding sites. MACS shifts all the tags by d/2 toward the 3’ ends to the most likely protein-DNA interaction sites.
+
+--nomodel parameter: While on, MACS will bypass building the shifting modelin default.
+
+### Question 4
+
+MACS2 produces three ouput files:
+Log format: present the progression of command. 
+BroadPeak format: use to provide called region of signal enrichment based on pooled, 
+normalized interpreted data. 
+GappedPeak format: provide called regions of signal enrichment based on pooled, normalized 
+data where the regions may be splice or incorporate gaps in the genomic sequence. 
+Txt format: contains full information of a called peak with a header. 
+
+### Question 5
+
+What is the Jaccard index? The Jaccard Similarity Index is a measure of the similarity between two sets of data.
+
+What dose it measure? The Jaccard similarity index is calculated as:
+Jaccard Similarity = (number of observations in both sets) / (number in either set)
+
+What is it relevant in this context?
+Different data types have different peak shapes. Same transcription bindings may have different peak shapes reflecting differences in biological conditions. Replicates should have similar binding patterns. By checking the similarity between two sets of data, we can see the different between samples.
+
+
+
+
+
+
+
+
