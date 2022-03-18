@@ -1,0 +1,323 @@
+---
+title: "Week_4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/student_data/BBT.BI.203_2022/students/leh/ex4")
+```
+
+# Bulk RNA-seq: interpretation of differential expression results
+
+# Dataset
+
+Loading the R workspace of exercise set 3 into RData file.
+
+
+```{r echo=TRUE, eval=FALSE}
+load("/student_data/BBT.BI.203_2022/students/leh/ex3/week_3.RData")
+```
+
+# Visualizations for differntial expression
+
+Here we will focus on MA plot, heatmaps, and principal component analysis visualization.
+
+## Tasks
+
+### Task1
+
+Using the results from Exercise set 3.
+
+```{r Calling-results, echo=TRUE, eval=FALSE}
+library(DESeq2)
+
+rs <- rowSums(data_matrix)
+rs <- rs[rs != 0]
+q10 <- quantile(rs, 0.1, na.rm=FALSE, names = TRUE)
+rs <- rs[rs > q10]
+dds_manual_filtering <- dds[names(rs),]
+dds_manual_filtering <- DESeq(dds_manual_filtering)
+
+res <- results(dds_manual_filtering, contrast = c("Type", "BPH", "PC"))
+resLFC <- lfcShrink(dds_manual_filtering, coef = "Type_PC_vs_BPH", type="apeglm")
+plotMA(res, ylim=c(-6,6))
+plotMA(resLFC)
+
+res_NA_Filtered = res[!is.na(res$padj),]
+res_NA_Filtered_p = res_NA_Filtered[res_NA_Filtered$padj < 0.1, ]
+
+```
+
+### Task2
+
+Call differentially expressed genes (DEGs) from the DESeqresult object res from Task1 by selecting genes with an adjusted p-values less than 0.1.
+
+```{r pvalues-0.1, echo=TRUE, eval=FALSE}
+res_NA_Filtered = res[!is.na(res$padj),]
+res_NA_Filtered_p = res_NA_Filtered[res_NA_Filtered$padj < 0.1, ]
+```
+
+### Task3
+
+Using the pheatmap package to plot the read counts of the DEGs from task 2 as a heat map.
+
+```{r heat-map, echo=TRUE, eval=FALSE}
+library("pheatmap")
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+df <- as.data.frame(colData(dds)[,c("Sample.name","Type")])
+ntd <- normTransform(dds)
+
+pheatmap(assay(ntd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col=df)
+```
+
+
+### Task4
+
+Using the variance stabilizing transforms to generate a normalized gene count matrix.
+
+```{r normalized-gene, echo=TRUE, eval=FALSE}
+colData(dds)
+dds$Type
+res_dds = results(dds)
+head(res_dds)
+
+vsd = vst(dds, blind = FALSE)
+plotPCA(vsd, intgroup=c("Type", "Sample.name"))
+plotPCA(vsd, intgroup=c("Collection.method"))
+plotPCA(vsd, intgroup=c("RNA.Isolation.method"))
+```
+
+
+### Task5
+
+To produce principal component analysis scatter plots of the normalized count matrix from Task4.
+
+```{r PCA-plot, echo=TRUE, eval=FALSE}
+
+plotPCA(vsd, intgroup=c("Type", "Sample.name"))
+plotPCA(vsd, intgroup=c("Collection.method"))
+plotPCA(vsd, intgroup=c("RNA.Isolation.method"))
+```
+
+## Questions
+
+### Question1
+
+The upregulated genes are more affected by the log-fold change shrinkage
+
+
+### Question2
+
+The expression of CRPC_539 is more significant different from other samples due to it have higher expression of genes in a comparison in heatmap.
+
+### Question3
+
+We can see the principal component of each samples or methods, thus, we can see the differnece in the distribution between them.
+
+
+### Question 4
+
+A PCA plot shows the scores of samples as dots and loading of variable for vectors of 9 samples.Loadings close to -1 or 1 indicate that the variable strongly influences the component. In here, in the group, we can observed the significant difference in CRPC group.  
+
+# Enrichment analysis: Gene ontology
+
+## Tasks
+
+### Task1
+
+Loading the clusterProfiler and org.Hs.eg.db annotation libraries.
+
+```{r Loading-libraries, echo=TRUE, eval=FALSE}
+library(clusterProfiler)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+
+### Task2
+
+Extract the identifiers of the differential expressed genes between the BPH and PC samples.
+
+```{r Extracting-identifiers, echo=TRUE, eval=FALSE}
+# Use the results() function to compute log2 fold changes and p-values for the BPH and PC comparison.
+res <- results(dds_manual_filtering, contrast = c("Type", "BPH", "PC"))  
+
+res_NA_Filtered = res[!is.na(res$padj),]
+res_NA_Filtered_p = res_NA_Filtered[res_NA_Filtered$padj < 0.1, ]
+differential_identifiers = rownames(res_NA_Filtered_p)
+length(differential_identifiers) #392
+all_identifiers = rownames(res) 
+length(all_identifiers) # 35481
+
+```
+
+### Task3
+
+Perform the enrichment analysis for Biological Process (BP) GO terms using the enrichGO() function.
+
+```{r Enrich-analysis, echo=TRUE, eval=FALSE}
+GO_terms = enrichGO(differential_identifiers, 
+                    "org.Hs.eg.db", 
+                    keyType = "ENSEMBL", 
+                    pvalueCutoff = 0.05, 
+                    pAdjustMethod = "BH",)
+```
+
+### Task4
+
+Add a table of the top 5 most enriched BP GO terms.
+
+```{r 5-top-Enrich-analysis, echo=FALSE}
+# kable(head(GO_terms[1:5,]))
+```
+
+## Questions
+
+### Question1
+
+How many enriched BP GO terms do you obtain? 19.
+Cutoffs values: p-value cutoff 0.05, adjusted p-value cutoff following BH method, q-value cutoff 0.2.
+
+### Question2
+
+Are any of the enriched GO terms from Task 3 interesting considering that we are comparing cancerous (PC) and non-cancerous (BPH) samples? Growth factor binding and activity could be one of the options and DNA-binding transcription activator activity, RNA polymerase II-specific could be a another option. 
+
+# Enrichment analysis: Transcription factor binding sites
+
+## Tasks
+
+### Task1
+
+First, we need to know where the binding sites of this TF are located in the genome, which can be determined with chromatin immunoprecipitation (ChIP) experiments. 
+
+```{r Transcript-factors-analysis, echo=TRUE, eval=FALSE}
+AR_locations = read.table("/student_data/BBT.BI.203_2022/data/ex4/TF_binding_sites/AR_binding_sites.bed",
+             header = FALSE, 
+             sep="\t",
+             stringsAsFactors=FALSE)
+GRanges = GRanges(AR_locations$V1, IRanges(AR_locations$V2, AR_locations$V3))
+```
+
+### Task2
+
+Extract the identifiers of the differential expressed genes between the BPH and PC samples into a varialbe called diff_genes
+```{r GRanges-constructor, echo=TRUE, eval=FALSE}
+diff_genes = differential_identifiers
+length(diff_genes) # 392
+all_genes = all_identifiers
+length(all_genes) # 35481
+```
+
+### Task3
+
+Next, we need to find the coordinates of the promoter regions of our genes from Task 2. The code below generates a GRanges object called promoter_regions that contains the promoter coordinates of all annotated genes in the human genome.
+
+```{r Promoter-regions, echo=TRUE, eval=FALSE}
+library(biomaRt)
+library(GenomicRanges)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+
+genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene)
+mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+bm <- getBM(attributes = c("ensembl_gene_id",'entrezgene_id'), values=names(genes), mart = mart)
+names(genes) <- bm$ensembl_gene_id[match(genes$gene_id,bm$entrezgene_id)]
+promoter_regions = promoters(genes)
+
+diff_gene_promoters  = promoter_regions[names(GRanges(promoter_regions)) %in% diff_genes,]
+length(diff_gene_promoters) # 330
+
+all_gene_promoters = promoter_regions[names(GRanges(promoter_regions)) %in% all_genes,]
+length(all_gene_promoters) # 19438
+```
+
+### Task4
+
+Determine which of the gene promoters in diff_gene_promoters and all_gene_promoters overlap with an AR binding site in AR_locations.
+
+```{r Overlap-analysis, echo=TRUE, eval=FALSE}
+over_lap_diff_genes = GenomicRanges::findOverlaps(diff_gene_promoters, GRanges)
+length(over_lap_diff_genes) #16
+
+over_lap_all_genes = GenomicRanges::findOverlaps(all_gene_promoters, GRanges)
+length(over_lap_all_genes) # 309
+```
+
+### Task5
+
+Running a one-side Fisher's exact test.
+
+```{r Fisher-test, echo=TRUE, eval=FALSE}
+N = 19438
+M = 330
+n = 309
+k = 16
+
+sum(dhyper(k:n, M, N-M, n)) # 8.328699e-05
+
+```
+
+## Questions
+
+### Question1
+
+Coding provided in Task3:
+library(biomaRt) : Calling the library biomaRt. The library contains mapping identifiers for the integration of genomic datasets with the E/Bioconductor package biomaRt.
+
+library(GenomicRanges): Calling the library GenomicRanges. The package defines general purpose containers for storing and manipulating genomic intervals and variables defined along a genome.
+
+library(TxDb.Hsapiens.UCSC.hg38.knownGene): Calling the library TxDb.Hsapiens.UCSC.hg38.knownGene. This package loads one or more TxDb objects, of Homo sapiens data from UCSC build hg 38 based on the knownGene track.
+
+genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene): generic functions to extract genomic features from TxDb based on hg38 and it named as genes object.
+
+mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl"): useMart function enables one to connect to a specified Biomart databased "ensembl" with a dataset (hsaoiens_gene_ensembl).
+
+bm <- getBM(attributes = c("ensembl_gene_id",'entrezgene_id'), values=names(genes), mart = mart): getBM is the main biomaRt query function, given a set of attributes containing "ensemble_gene_id" and "entrezgene_id" fir value filtering (genes) and set up an object of class Mart.
+
+names(genes) <- bm$ensembl_gene_id[match(genes$gene_id,bm$entrezgene_id)]: names the list of genes by ensemble_gene_id of bm object, however, in this case, the selected ensemble_gene_ids are based on the match between gene_id of genes and entregene_id of bm.
+
+promoter_regions = promoters(genes): promoter_region object is created based on promoter function, meaning generic functions to extract genomic features from a TxDb object (genes).
+
+### Question2
+
+Why do we use fisher's one-tailed test? Because we have two independent variables here (AR transcript factor) and results of RNA-seq, thus we want to find out if proportions for one nominal variable are different among values of the other nominal variable. 
+
+### Question3
+
+Are the promoters of our BPH and PC differentially expressed genes enriched for AR binding site? Yes. Because the p-value of Fisher test here 8.328699e-05 (less than 0.05)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
