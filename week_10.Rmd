@@ -1,0 +1,533 @@
+---
+title: "week_10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# HiC analysis
+
+# HiC toy example
+
+## Task 0
+
+Make a matrix
+
+```{r matrix-show, echo=FALSE, message=FALSE}
+matrix_example = matrix(nrow = 5, ncol = 5)
+matrix_example[3,] = c(7,8,3,10,9)
+matrix_example[1,] = c(1,6,7,NA, 11)
+matrix_example[2,] = c(6,2,8,NA, NA)
+matrix_example[4,] = c(NA,NA,10,4, NA)
+matrix_example[5,] = c(11,NA,9,NA, 5)
+print(matrix_example)
+
+```
+
+# Preprocessing and alignment
+
+# Task 1
+
+## Task 1.1
+
+Trim the fastq fukes using homerTools.
+
+```{r homeTools-command, echo=TRUE, eval=FALSE}
+
+# Sample SRR7702334
+homerTools trim -3 GATC -mis 0 -matchStart 20 -min 20 
+            SRR7702334_chr20_1.fastq.gz SRR7702334_chr20_2.fastq.gz
+
+# Sample SRR7702335
+homerTools trim -3 GATC -mis 0 -matchStart 20 -min 20 
+            SRR7702335_chr20_1.fastq.gz SRR7702335_chr20_2.fastq.gz
+```
+
+## Task 1.2
+
+Align the trimmed reads using bowtie. Save the results in bam format in the alignments folder.
+bowtie2 command is used to align single fastq trimmed file for one time.
+
+```{r Bowties-command, echo=TRUE, eval=FALSE}
+# SRR7702334_chr20_1.fastq.gz.trimmed
+bowtie2 -p 20 
+        -x /student_data/BBT.BI.203_2022/references/ex10/chr20_index/chr20 
+        -U SRR7702334_chr20_1.fastq.gz.trimmed 2>bowtie2_stats_1.log | samtools view -u -O BAM  
+        -o /student_data/BBT.BI.203_2022/students/leh/ex10/alignments/SRR7702334_chr20_1.bam
+
+# SRR7702334_chr20_2.fastq.gz.trimmed
+bowtie2 -p 20 
+        -x /student_data/BBT.BI.203_2022/references/ex10/chr20_index/chr20 
+        -U SRR7702334_chr20_2.fastq.gz.trimmed 2>bowtie2_stats_2.log | samtools view -u -O BAM  
+        -o /student_data/BBT.BI.203_2022/students/leh/ex10/alignments/SRR7702334_chr20_2.bam
+
+# SRR7702335_chr20_1.fastq.gz.trimmed
+bowtie2 -p 20 
+        -x /student_data/BBT.BI.203_2022/references/ex10/chr20_index/chr20 
+        -U SRR7702335_chr20_1.fastq.gz.trimmed 2>bowtie2_stats_3.log | samtools view -u -O BAM  
+        -o /student_data/BBT.BI.203_2022/students/leh/ex10/alignments/SRR7702335_chr20_1.bam
+
+## SRR7702335_chr20_2.fastq.gz.trimmed
+bowtie2 -p 20 
+        -x /student_data/BBT.BI.203_2022/references/ex10/chr20_index/chr20 
+        -U SRR7702335_chr20_2.fastq.gz.trimmed 2>bowtie2_stats_4.log | samtools view -u -O BAM  
+        -o /student_data/BBT.BI.203_2022/students/leh/ex10/alignments/SRR7702335_chr20_2.bam
+
+```
+
+## Task 1.3
+
+Generate Paired-End tag directory with HOMER for both of the cell types.
+
+```{r Paired-end-tag, echo=TRUE, eval=FALSE}
+# makeTagDirectory <Output Directory Name> [options] <alignment file1> [alignment file 2] ...
+
+makeTagDirectory /student_data/BBT.BI.203_2022/students/leh/ex10/tags/. 
+                ES-HiC 
+                SRR7702334_chr20_1.bam,SRR7702334_chr20_2.bam,SRR7702335_chr20_1.bam,SRR7702334_chr20_2.bam 
+                -tbp 1
+```
+
+# Question 1
+
+## Question 1.1
+To improve mapping rates, it's best to trim the sequences at the restriction site. In this case, using trimming tools is to remove adapter sequences and bases with low sequencing quality at the restriction sites, in order to help read aligners to achieve a better read mapping results. 
+
+## Question 1.2
+
+Hi-C is known as a chromoseom conforamtaion technology with a range of steps performed on a sample of cells. A range of steps is to start from a cartoon depicting cross-linked chromatin and a protocypic pair of mate reads positioned on the restrictiion fragments from which they priginate. Raw sequencing paired-end reads in FASTQ files are aligned to the reference genome considering the mate reads independently. Then, aligned reads (in SAM or BAM files, normally transferred to BAM files for saving memories) are assigned to their fragments of origin and paired. The paried reads are kept in a sorted files that can be in either plain text, indexed text, or binary formats which are dependent on the pipelines. Finally, after filtering binning, the read counts are stored in contract matrix files, including plain text or binary file formats. 
+To conclusion, Hi-C data resolution is primarly defined by (1) the restriction enzymes used in the experimental procedure and by (2) the sequencing depth. 
+
+## Question 1.3
+
+How many base pairs on average in theory is between cut sites with a 4-cutter and 6-cutter enzymes?
+
+As I know, 434 bp (for a four-cutter such as MboI) to 3.7 kb (for a six-cutter such as HindIII).
+
+# Contact matrix and normalization
+
+# Task 2
+
+## Task 2.1
+
+Generate raw and balance normalized matrices from both samples for chr20 using analyze HiC. Use resolution of 100kb and window size of 100kb.
+
+```{r Balance-and-raw-matrices100, echo=TRUE, eval=FALSE}
+# Sample 22Rv1_chr20
+analyzeHiC tagDirs/chr20/22Rv1_chr20 
+          -pos chr20 -res 100000 -window 100000 -balance 
+          > /student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.100kbres100kbwindow.txt
+
+analyzeHiC tagDirs/chr20/22Rv1_chr20 
+          -pos chr20 -res 100000 -window 100000 -raw 
+          > /student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_raw_22Rv1.100kbres100kbwindow.txt
+
+# Sample RWPE1_chr20
+analyzeHiC tagDirs/chr20/RWPE1_chr20 
+          -pos chr20 -res 100000 -window 100000 -balance 
+          > /student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_RWPE1.100kbres100kbwindow.txt
+
+analyzeHiC tagDirs/chr20/RWPE1_chr20 
+          -pos chr20 -res 100000 -window 100000 -raw 
+          > /student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_raw_RWPE1.100kbres100kbwindow.txt
+```
+
+
+Generate balanced matrices for both samples for chr20. Use resolution of 25 kb and window size of 25 kb.
+
+```{r Balance-and-raw-matrices25, echo=TRUE, eval=FALSE}
+# Sample 22Rv1_chr20
+analyzeHiC tagDirs/chr20/22Rv1_chr20 
+            -pos chr20 -res 25000 -window 25000 -raw 
+            > /student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.25kbres25kbwindow.txt
+
+# Sample RWPE1_chr20
+analyzeHiC tagDirs/chr20/RWPE1_chr20 
+          -pos chr20 -res 25000 -window 25000 -raw 
+          > /student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_RWPE1.25kbres25kbwindow.txt
+```
+
+## Task 2.2
+
+Down load the matrix to R and skip the first line and first 2 columns. 
+
+```{r load-data, echo=TRUE, eval=FALSE}
+
+balance22Rv1res100 = as.matrix(read.table(
+  file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.100kbres100kbwindow.txt",
+  skip = 1,
+  header = FALSE)[,-c(1,2)])
+
+raw22Rv1res100 = as.matrix(read.table(
+  file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_raw_22Rv1.100kbres100kbwindow.txt",
+  skip = 1,
+  header = FALSE)[,-c(1,2)])
+
+balanceRWPE1res100 = as.matrix(read.table(
+  file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_RWPE1.100kbres100kbwindow.txt",
+  skip = 1,
+  header = FALSE)[,-c(1,2)])
+
+rawRWPE1res100 = as.matrix(read.table(
+  file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_raw_RWPE1.100kbres100kbwindow.txt",
+  skip = 1,
+  header = FALSE)[,-c(1,2)])
+
+### convert to sparse matrix object
+library(Matrix)
+balance22Rv1res100_sparse <- as(balance22Rv1res100, "sparseMatrix")      
+```
+
+
+Caclulate the coverages of both raw and normalized matrices with resultions of 100kb by row sumes and plot a line plot of the coverage
+
+
+```{r plot, echo=TRUE, eval=FALSE}
+
+par(mfrow = c(2,2))
+plot(rowSums(balance22Rv1res100), type = "l") 
+plot(rowSums(balanceRWPE1res100),type = "l") 
+plot(rowSums(raw22Rv1res100),type = "l") 
+plot(rowSums(rawRWPE1res100),type = "l")
+```
+
+
+```{r plot-show, echo=FALSE, message=FALSE, fig.width=8, fig.height=6, fig.cap="A plot of the coverages of samples"}
+
+balance22Rv1res100 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.100kbres100kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])
+raw22Rv1res100 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_raw_22Rv1.100kbres100kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])
+balanceRWPE1res100 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_RWPE1.100kbres100kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])
+rawRWPE1res100 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_raw_RWPE1.100kbres100kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])  
+
+par(mfrow = c(2,2))
+plot(rowSums(balance22Rv1res100), type = "l") 
+plot(rowSums(balanceRWPE1res100),type = "l") 
+plot(rowSums(raw22Rv1res100),type = "l") 
+plot(rowSums(rawRWPE1res100),type = "l")
+```
+
+
+Download the 25kb resolution balanced matrices the same way as previously.
+
+```{r load-25kbdata, echo=TRUE, eval=FALSE}
+
+balance22Rv1res25 = as.matrix(read.table(
+  file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.25kbres25kbwindow.txt",
+  skip = 1,
+  header = FALSE)[,-c(1,2)])
+
+balanceRWPE1res25 = as.matrix(read.table(
+  file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_RWPE1.25kbres25kbwindow.txt",
+  skip = 1,
+  header = FALSE)[,-c(1,2)])
+```
+
+
+To make the getcoord function
+
+```{r getcoord_function, echo=TRUE, eval=FALSE}
+library(ggplot2)
+
+getcoords <- function(i,j,g,val){
+  d<-j-i
+  n<-i
+  x1<-d*0.5+i-1
+  x2<-x4<-x1+0.5
+  x3<-x1+1
+  y1<-y3<-d*0.5
+  y2<-y1+0.5
+  y4<-y1-0.5
+  return(c(x1,y1,g,val, x2,y2,g,val ,x3,y3,g,val ,x4,y4,g,val))
+}
+
+rotateHeatmap <- function(m){
+  g=0
+
+  rotmat <- numeric(0)
+  for(i in 1:nrow(m)){
+    for(j in i:ncol(m)){
+      g=g+1
+
+      rotmat[((g-1)*16+1):(g*16)] <- getcoords(i,j,g,m[i,j])
+    }
+  }
+  
+  rotmat <- data.frame(matrix(rotmat,ncol = 4,byrow = T))
+  colnames(rotmat) <- c("x","y","group","value")
+  rotmat
+}
+
+plotmat <- function(m,lim=0.1,minval=0){
+  rotm <- rotateHeatmap(m)
+  rotm$value[rotm$value > lim*quantile(rotm$value,0.99)] <- lim*quantile(rotm$value,0.99)
+  rotm$value[rotm$value < minval] <- 0
+  ggplot() + geom_polygon(rotm, mapping=aes(x=x, y=y, group=group,fill=value)) + scale_fill_gradientn(colors = c("white","red"))+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
+          panel.background = element_blank(),axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y = element_blank())+
+     scale_x_continuous(labels = scales::comma)
+}
+
+```
+
+
+Plot e.g. 200 by 200 (e.g. somematrix[1:200,1:200]) bin region somewhere from the 100kb and 25kb matrixes for both samples to get an idea what the data looks like.
+ 
+Plot of balanced data of 22Rv1 sample with resolution 100kb.
+
+```{r plotmat-resolution100, echo=TRUE, eval=FALSE}
+
+plotmat(balance22Rv1res100[1:200,1:200], lim = 0.1)
+
+```
+
+
+```{r plot-res100-show, echo=FALSE, message=FALSE, fig.cap="A plotmat of samples 22Rv1 with resolution 100kb"}
+balance22Rv1res100 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.100kbres100kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])
+
+
+library(ggplot2)
+
+getcoords <- function(i,j,g,val){
+  d<-j-i
+  n<-i
+  x1<-d*0.5+i-1
+  x2<-x4<-x1+0.5
+  x3<-x1+1
+  y1<-y3<-d*0.5
+  y2<-y1+0.5
+  y4<-y1-0.5
+  return(c(x1,y1,g,val, x2,y2,g,val ,x3,y3,g,val ,x4,y4,g,val))
+}
+
+rotateHeatmap <- function(m){
+  g=0
+
+  rotmat <- numeric(0)
+  for(i in 1:nrow(m)){
+    for(j in i:ncol(m)){
+      g=g+1
+
+      rotmat[((g-1)*16+1):(g*16)] <- getcoords(i,j,g,m[i,j])
+    }
+  }
+  
+  rotmat <- data.frame(matrix(rotmat,ncol = 4,byrow = T))
+  colnames(rotmat) <- c("x","y","group","value")
+  rotmat
+}
+
+plotmat <- function(m,lim=0.1,minval=0){
+  rotm <- rotateHeatmap(m)
+  rotm$value[rotm$value > lim*quantile(rotm$value,0.99)] <- lim*quantile(rotm$value,0.99)
+  rotm$value[rotm$value < minval] <- 0
+  ggplot() + geom_polygon(rotm, mapping=aes(x=x, y=y, group=group,fill=value)) + scale_fill_gradientn(colors = c("white","red"))+theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
+          panel.background = element_blank(),axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y = element_blank())+
+     scale_x_continuous(labels = scales::comma)
+}
+
+plotmat(balance22Rv1res100[1:200,1:200], lim = 0.1)
+
+```
+
+
+Plot of balanced data of RWPE1 sample with resolution 100 kb.
+```{r plotmat-resolution25, echo=TRUE, eval=FALSE}
+
+plotmat(balanceRWPE1res100[1:200, 1: 200], lim = 0.1)
+
+```
+
+```{r plot-res100-RWPE1-show, echo=FALSE, message=FALSE, fig.cap="A plotmat of samples RWPE1 with resolution 100kb"}
+
+plotmat(balanceRWPE1res100[1:200, 1: 200], lim = 0.1)
+
+```
+
+
+Plot of balanced data of 22Rv1 sample with resolution 25 kb.
+```{r plotmat-show, echo=TRUE, eval=FALSE}
+
+plotmat(balance22Rv1res25[1:200, 1:200], lim = 0.1)
+
+```
+
+```{r plot-res25-Res-show, echo=FALSE, message=FALSE, fig.cap="A plotmat of samples 22Rv1 with resolution 25kb"}
+
+balanceRWPE1res25 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_RWPE1.25kbres25kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])
+plotmat(balanceRWPE1res25[1:200, 1:200], lim = 0.1)
+```
+
+Plot of balanced data of RWPE1  sample with resolution 25 kb.
+```{r plotmat-resolution25-RWPE1, echo=TRUE, eval=FALSE}
+
+plotmat(balanceRWPE1res25[1:200, 1:200], lim = 0.1)
+
+```
+
+```{r plot-res25-RWPE1-show, echo=FALSE, message=FALSE, fig.cap="A plotmat of samples RWPE1 with resolution 25kb"}
+
+balance22Rv1res25 = as.matrix(read.table(file = "/student_data/BBT.BI.203_2022/students/leh/ex10/matrices/output_balance_22Rv1.25kbres25kbwindow.txt",skip = 1,header = FALSE)[,-c(1,2)])
+plotmat(balance22Rv1res25[1:200, 1:200], lim = 0.1)
+
+```
+
+
+# Question 2
+
+# Question 2.1
+A: What are the main sources of biases in HiC data that we need to normalize?
+
+It could be:
+- The size selection parameter for read-pairs at selected enzyme in analysis.
+- The distance between adjacent cutter sites. The example in the paper: long and short fragments may have variable ligation efficiencies or compete differently on ligations with cis and trans fragment ends. 
+- The nucleotide composition of the DNA. 
+
+# Question 2.2
+
+What is weird thing with RWPE1 samples?
+
+It seems that RWPE1 have more samples and larger coverage than 22Rv1. I think that a reason could be two different cell line: 22Rv1 cells are normal prostate cells and RWPE1 cells are prostate cancer cells. In contrast to normal cells, cancer cells are unable to stop growing and dividing, this uncontrolled cell growth results in the formation of a tumor. Cancer cells have more genetic changes compared to normal cells, thus, in HiC analysis, more detection are recored in cancer cells. 
+
+At least, in a comparison of plots of 22Rv1 samples in balanced and raw data, the plots look the similar waves. But the plots of RWPE1 of balanced and raw data, the plot look quite different when the index is lower than 300.  
+
+# Question 2.3
+When see TAGs or loops from the interaction matrices from task 2.2d, with less resolution, I noticed that more similarities between the samples are recorded. 
+
+
+# TAD
+
+
+# Task 3
+
+## Task 3.1
+
+```{r data-frame, echo=TRUE, eval=FALSE}
+
+# Task 3.1.a
+plotmat(balance22Rv1res100[1:400,1:400], lim = 0.1)
+source('scripts/TopDom.R')
+nRowRv1res25 = nrow(balance22Rv1res25)
+nRowRv1res25
+chr = c();
+start = c();
+end = c();
+balance22Rv1res25_new = balance22Rv1res25
+for(i in 1: nRowRv1res25){
+  chr = c(chr, "chr20")
+  start = c(start, i*25000 - 25000)
+  end = c(end, i*25000)
+}
+
+balance22Rv1res25_new <- cbind(end, balance22Rv1res25_new)
+balance22Rv1res25_new <- cbind(start, balance22Rv1res25_new)
+balance22Rv1res25_new <- cbind(chr, balance22Rv1res25_new)
+write.table(balance22Rv1res25_new,
+            file = "balance22Rv1res25_new.tsv",
+            quote=FALSE,
+            row.names=FALSE,
+            col.names=FALSE,sep="\t")
+
+##Set input to file you saved in the previous task. Set window parameter to suitable value e.g. 16. Store the results #to R object.
+balance22Rv1res25_new_obj <- list()
+balance22Rv1res25_new_obj = TopDom(matrix.file = "balance22Rv1res25_new.tsv", 
+                                   window.size = 16)
+
+###3.1.c
+balance22Rv1res25_bed_domain = balance22Rv1res25_new_obj$bed[balance22Rv1res25_new_obj$bed$name == "domain",]
+View(balance22Rv1res25_bed_domain)
+
+###3.1.d
+median(balance22Rv1res25_bed_domain$chromEnd-balance22Rv1res25_bed_domain$chromStart)
+
+###3.1.e
+unique_start = balance22Rv1res25_bed_domain$chromStart[!balance22Rv1res25_bed_domain$chromStart %in% balance22Rv1res25_bed_domain$chromEnd ]
+
+unique_end = balance22Rv1res25_bed_domain$chromEnd[!balance22Rv1res25_bed_domain$chromEnd %in% balance22Rv1res25_bed_domain$chromStart ]
+
+TAD_boundaries = c(unique_start, unique_end)
+max(TAD_boundaries)
+min(TAD_boundaries)
+
+```
+
+
+## Task 3.2
+
+(*) From the TopDom results 1st element (binSignal) plot a suitable interval (e.g. first 200 bins) of the mean.cf (6th collumn) against the from.coord (3rd collumn) as line plot
+
+```{r TopDom-result, echo=TRUE, eval=FALSE}
+
+balance22Rv1res25_new_obj$binSignal
+plot(balance22Rv1res25_new_obj$binSignal$mean.cf,balance22Rv1res25_new_obj$binSignal$from.coord, xlim = c(0,100))
+
+##To this plot add vertical lines (abline(v=…)) based on corresponding TAD boundaires from the task 3.1.e.
+abline(h=max(TAD_boundaries), v=min(TAD_boundaries))
+
+```
+
+
+
+## Task 3.3
+
+
+## Task 3.4
+
+```{r repeat-task, echo=TRUE, eval=FALSE}
+
+# Task 3.1.a
+plotmat(balance22Rv1res100[1:400,1:400], lim = 0.1)
+source('scripts/TopDom.R')
+nRowRv1res25 = nrow(balance22Rv1res25)
+nRowRv1res25
+chr = c();
+start = c();
+end = c();
+balance22Rv1res25_new = balance22Rv1res25
+for(i in 1: nRowRv1res25){
+  chr = c(chr, "chr20")
+  start = c(start, i*25000 - 25000)
+  end = c(end, i*25000)
+}
+
+balance22Rv1res25_new <- cbind(end, balance22Rv1res25_new)
+balance22Rv1res25_new <- cbind(start, balance22Rv1res25_new)
+balance22Rv1res25_new <- cbind(chr, balance22Rv1res25_new)
+
+##Set input to file you saved in the previous task. Set window parameter to suitable value e.g. 16. Store the results #to R object.
+balance22Rv1res25_new_obj_size10 <- list()
+balance22Rv1res25_new_obj_size10 = TopDom(matrix.file = "balance22Rv1res25_new.tsv", window.size = 10)
+
+###3.1.c
+balance22Rv1res25_bed_domain_size10 = balance22Rv1res25_new_obj_size10$bed[balance22Rv1res25_new_obj_size10$bed$name == "domain",]
+View(balance22Rv1res25_bed_domain_size10)
+
+###3.1.d
+median(balance22Rv1res25_bed_domain_size10$chromEnd-balance22Rv1res25_bed_domain_size10$chromStart)
+
+###3.1.e
+unique_start_size10 = balance22Rv1res25_bed_domain_size10$chromStart[!balance22Rv1res25_bed_domain_size10$chromStart %in% balance22Rv1res25_bed_domain_size10$chromEnd ]
+
+unique_end_size10 = balance22Rv1res25_bed_domain_size10$chromEnd[!balance22Rv1res25_bed_domain_size10$chromEnd %in% balance22Rv1res25_bed_domain_size10$chromStart ]
+
+TAD_boundaries_size10 = c(unique_start_size10, unique_end_size10)
+max(TAD_boundaries_size10)
+min(TAD_boundaries_size10)
+
+```
+
+# Question 3
+TopDom is to identify topological domains in sub-mega base resolution, which appear to be conserved across cell types and to some extent even between organisms, in additionally it provides a set of statistical methods for evaluating their quality. TopDom also identifies more and higher quality topological domains than the popular directional index algorithm. The topological domains identified by TopDom provide strong support for the cross-tissue TD conservation. TAD method jungle could able to provide directionality index through computing divergence between up/downstream interaction counts and HMM to identify TADs. Then the purpose is to maximize a citeria which evaluate a within/between coutns ration and combine multi resolution results in a consensual segmentations. In addition, ti could blokc boundary estimation in matrix. 
+
+Concept for TopDom has three steps
+(1) For each bin , we generate a value binSignal by computing the average contact frequency among pairs of chromatin regions which are from upstream and downstream in a small windown surrounding the bin. In here, we chosed the windown size 16, but we can choose smaller size like 10 also. This step results in a curve binSignal that runs along the chromosome. 
+
+(2) Discover TD boundaries as local minima in the binSignals series. In here, TD boundaries are created upon unique chromosome starting and ending point of domain results.
+
+(3) Filter out false detection in the local minima by statistical testing. We must filter flase positives from the identified TD boundaries, we take advantage of the fact that chromatin interaction inside TDs generally have higher frequencies than those between adjacent TDs. 
+
+
+
+
+
+
